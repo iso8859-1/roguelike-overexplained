@@ -73,15 +73,16 @@ if ($robocopyExit -ge 8) {
 
 Write-Host "Created $nextName."
 
-if (-not $KeepOldTargets) {
-    foreach ($day in $dayDirs) {
-        $targetPath = Join-Path $day.Path "target"
-        if (Test-Path $targetPath) {
-            Write-Host "Removing $($day.Name)\target ..."
-            Remove-Item -Path $targetPath -Recurse -Force
-        }
-    }
-}
+# disabled for now as rust-analyzer and other tools are now caching in target/ across days, so we don't want to delete it yet
+#if (-not $KeepOldTargets) {
+#    foreach ($day in $dayDirs) {
+#        $targetPath = Join-Path $day.Path "target"
+#        if (Test-Path $targetPath) {
+#            Write-Host "Removing $($day.Name)\target ..."
+#            Remove-Item -Path $targetPath -Recurse -Force
+#        }
+#    }
+#}
 
 if ($NoCommit) {
     Write-Host "Skipping commit (-NoCommit passed)."
