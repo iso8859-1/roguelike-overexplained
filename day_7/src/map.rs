@@ -91,7 +91,7 @@ impl Map {
             MapPosition { x: 2, y: 3 },
             super::Player,
         ));
-        self.add_entity(MapPosition { x: x, y: y }, e.id());
+        self.add_entity(MapPosition { x, y }, e.id());
     }
 }
 
