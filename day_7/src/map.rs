@@ -88,7 +88,7 @@ impl Map {
             },
             TextColor(Color::linear_rgb(1.0,0.0, 0.0)),
             Transform::from_translation(map_to_screen_coordinates(x, y, ACTORS_Z)),
-            MapPosition { x: 2, y: 3 },
+            MapPosition { x, y },
             super::Player,
         ));
         self.add_entity(MapPosition { x, y }, e.id());
