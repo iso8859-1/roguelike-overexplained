@@ -2,7 +2,7 @@ use bevy::log::LogPlugin;
 use bevy::prelude::*;
 
 mod map;
-use map::{Map, MapPosition, ACTORS_Z};
+use map::{MapPlugin, Map, MapPosition, ACTORS_Z, Player, Being};
 
 const WINDOW_WIDTH: u32 = 1920;
 const WINDOW_HEIGHT: u32 = 1080;
@@ -14,10 +14,9 @@ enum TurnPhases {
     #[default]
     PlayerInput,
     PlayerMovement,
+    NpcAi,
+    NpcMovement,
 }
-
-#[derive(Component)]
-struct Player;
 
 fn map_to_screen_coordinates(map_x: u32, map_y: u32, z_level: u32) -> Vec3 {
     let screen_x = -(WINDOW_WIDTH as f32 / 2.0) + (map_x as f32 * FIELD_SIZE_X) + (FIELD_SIZE_X / 2.0);
@@ -48,11 +47,11 @@ fn main() {
     });
 	App::new()
 	.add_plugins(default_plugins)
+    .add_plugins(MapPlugin{})
 	.insert_state(TurnPhases::PlayerInput)
 	.add_systems(Startup, setup)
     .add_systems(Update, keyboard_input.run_if(in_state(TurnPhases::PlayerInput)))
     .add_systems(Update, move_entity.run_if(in_state(TurnPhases::PlayerMovement)))
-    .insert_resource(Map::default())
 	.run();
 }
 
@@ -60,8 +59,8 @@ fn setup(mut map: ResMut<Map>, mut commands: Commands) {
 	commands.spawn(Camera2d);
 
     map.spawn_player(&mut commands, 2, 3);
-
     info!("Player spawned");
+    map.spawn_npc(&mut commands, 100, 30, "K");
 
     for y in 0..map.height() {
         let width = map.width();

@@ -23,6 +23,9 @@ pub struct Map {
 }
 
 #[derive(Component)]
+pub struct Player;
+
+#[derive(Component)]
 pub struct Terrain;
 
 #[derive(Component)]
@@ -88,15 +91,40 @@ impl Map {
             },
             TextColor(Color::linear_rgb(1.0,0.0, 0.0)),
             Transform::from_translation(map_to_screen_coordinates(x, y, ACTORS_Z)),
-            MapPosition { x: 2, y: 3 },
-            super::Player,
+            MapPosition { x, y },
+            Player,
         ));
         self.add_entity(MapPosition { x, y }, e.id());
     }
+
+    pub fn spawn_npc(&mut self, commands: &mut Commands, x: u32, y: u32, symbol: &str) {
+        let e = commands.spawn((
+            Text2d::new(symbol),
+            TextFont {
+                font_size: FontSize::Px(FIELD_SIZE_Y),	
+                font: default(),
+                ..default()
+            },
+            TextColor(Color::WHITE),
+            Transform::from_translation(map_to_screen_coordinates(x, y, ACTORS_Z)),
+            MapPosition { x, y },
+            Being,
+        ));
+        self.add_entity(MapPosition { x, y }, e.id());
+    }
+
 }
 
 impl Default for Map {
     fn default() -> Self {
         Self::new(DEFAULT_MAP_WIDTH, DEFAULT_MAP_HEIGHT)
+    }
+}
+
+pub struct MapPlugin;
+
+impl Plugin for MapPlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(Map::default());
     }
 }
