@@ -212,3 +212,54 @@ impl Plugin for MapPlugin {
         app.insert_resource(Map::default());
     }
 }
+
+ #[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_distance() {
+        let pos1 = MapPosition { x: 0, y: 0 };
+        let pos2 = MapPosition { x: 3, y: 4 };
+        assert_eq!(pos1.distance_to(pos2), 7);
+    }
+
+    #[test]
+    fn test_neighbors() {
+        let center = MapPosition { x: 5, y: 5 };
+        let neighbors = neighbors_of(center);
+        let expected_neighbors = [
+            MapPosition { x: 6, y: 6 },
+            MapPosition { x: 6, y: 5 },
+            MapPosition { x: 6, y: 4 },
+            MapPosition { x: 5, y: 4 },
+            MapPosition { x: 4, y: 4 },
+            MapPosition { x: 4, y: 5 },
+            MapPosition { x: 4, y: 6 },
+            MapPosition { x: 5, y: 6 },
+        ];
+        assert_eq!(neighbors, expected_neighbors);
+    }
+
+    #[test]
+    fn test_addition() {
+        let pos1 = MapPosition { x: 2, y: 3 };
+        let pos2 = MapPosition { x: 4, y: 5 };
+        let result = pos1 + pos2;
+        assert_eq!(result, MapPosition { x: 6, y: 8 });
+    }
+
+    #[test]
+    fn test_subtraction() {
+        let pos1 = MapPosition { x: 5, y: 7 };
+        let pos2 = MapPosition { x: 2, y: 3 };
+        let result = pos1 - pos2;
+        assert_eq!(result, MapPosition { x: 3, y: 4 });
+    }
+
+    #[test]
+    fn test_from_tuple() {
+        let pos: MapPosition = (10, 20).into();
+        assert_eq!(pos, MapPosition { x: 10, y: 20 });
+    }
+}

@@ -117,9 +117,7 @@ fn npc_ai(
 ) {
     for mut map_position in query.iter_mut() {
         //get player position
-        debug!("entity at: {:?}", map_position);
         if let Some(player_position) = map.player_position() {
-            debug!("player at: {:?}", player_position);
             //calculate all possible next positions
             let mut neighbors: Vec<(MapPosition, i32)> = neighbors_of(*map_position)
                 .into_iter()
