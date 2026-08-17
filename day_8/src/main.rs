@@ -2,7 +2,7 @@ use bevy::log::LogPlugin;
 use bevy::prelude::*;
 
 mod map;
-use map::{MapPlugin, Map, MapPosition, ACTORS_Z, Player, Npc, neighbors_of};
+use map::{ACTORS_Z, Map, MapPlugin, MapPosition, Npc, Player, neighbors_of};
 
 const WINDOW_WIDTH: u32 = 1920;
 const WINDOW_HEIGHT: u32 = 1080;
@@ -19,8 +19,10 @@ enum TurnPhases {
 }
 
 fn map_to_screen_coordinates(map_x: i32, map_y: i32, z_level: i32) -> Vec3 {
-    let screen_x = -(WINDOW_WIDTH as f32 / 2.0) + (map_x as f32 * FIELD_SIZE_X) + (FIELD_SIZE_X / 2.0);
-    let screen_y = WINDOW_HEIGHT as f32 / 2.0 - (map_y as f32 * FIELD_SIZE_Y) - (FIELD_SIZE_Y / 2.0);
+    let screen_x =
+        -(WINDOW_WIDTH as f32 / 2.0) + (map_x as f32 * FIELD_SIZE_X) + (FIELD_SIZE_X / 2.0);
+    let screen_y =
+        WINDOW_HEIGHT as f32 / 2.0 - (map_y as f32 * FIELD_SIZE_Y) - (FIELD_SIZE_Y / 2.0);
     Vec3::new(screen_x, screen_y, z_level as f32)
 }
 
@@ -45,20 +47,26 @@ fn main() {
         }),
         ..default()
     });
-	App::new()
-	.add_plugins(default_plugins)
-    .add_plugins(MapPlugin{})
-	.insert_state(TurnPhases::PlayerInput)
-	.add_systems(Startup, setup)
-    .add_systems(Update, keyboard_input.run_if(in_state(TurnPhases::PlayerInput)))
-    .add_systems(Update, move_player.run_if(in_state(TurnPhases::PlayerMovement)))
-    .add_systems(Update, npc_ai.run_if(in_state(TurnPhases::NpcAi)))
-    .add_systems(Update, move_npc.run_if(in_state(TurnPhases::NpcMovement)))
-	.run();
+    App::new()
+        .add_plugins(default_plugins)
+        .add_plugins(MapPlugin {})
+        .insert_state(TurnPhases::PlayerInput)
+        .add_systems(Startup, setup)
+        .add_systems(
+            Update,
+            keyboard_input.run_if(in_state(TurnPhases::PlayerInput)),
+        )
+        .add_systems(
+            Update,
+            move_player.run_if(in_state(TurnPhases::PlayerMovement)),
+        )
+        .add_systems(Update, npc_ai.run_if(in_state(TurnPhases::NpcAi)))
+        .add_systems(Update, move_npc.run_if(in_state(TurnPhases::NpcMovement)))
+        .run();
 }
 
 fn setup(mut map: ResMut<Map>, mut commands: Commands) {
-	commands.spawn(Camera2d);
+    commands.spawn(Camera2d);
 
     map.spawn_player(&mut commands, 2, 3);
     info!("Player spawned");
@@ -69,7 +77,7 @@ fn setup(mut map: ResMut<Map>, mut commands: Commands) {
         map.spawn_wall(&mut commands, 0, y);
         map.spawn_wall(&mut commands, width - 1, y);
     }
-    for x in 1..(map.width() - 1) as i32{
+    for x in 1..(map.width() - 1) as i32 {
         let height = map.height() as i32;
         map.spawn_wall(&mut commands, x, 0);
         map.spawn_wall(&mut commands, x, height - 1);
@@ -83,28 +91,37 @@ fn keyboard_input(
     mut next_turn_phase: ResMut<NextState<TurnPhases>>,
 ) {
     for (entity, mut map_position) in query.iter_mut() {
-        let original_position = map_position.clone();
+        let original_position = *map_position;
         if keyboard_input.pressed(KeyCode::KeyW) {
-            map_position.y = map_position.y-1;
+            map_position.y -= 1;
         }
         if keyboard_input.pressed(KeyCode::KeyS) {
-            map_position.y = map_position.y+1;
+            map_position.y += 1;
         }
         if keyboard_input.pressed(KeyCode::KeyA) {
-            map_position.x = map_position.x-1;
+            map_position.x -= 1;
         }
         if keyboard_input.pressed(KeyCode::KeyD) {
-            map_position.x = map_position.x+1;
+            map_position.x += 1;
         }
         if original_position != *map_position {
-            debug!("Player {entity} moved to ({}, {})", map_position.x, map_position.y);
+            debug!(
+                "Player {entity} moved to ({}, {})",
+                map_position.x, map_position.y
+            );
             if map.get_entity(&map_position).is_some() {
-                debug!("Player {entity} collided with an entity at ({}, {})", map_position.x, map_position.y);
+                debug!(
+                    "Player {entity} collided with an entity at ({}, {})",
+                    map_position.x, map_position.y
+                );
                 *map_position = original_position;
             } else {
-                debug!("Player {entity} moved to ({}, {})", map_position.x, map_position.y);
+                debug!(
+                    "Player {entity} moved to ({}, {})",
+                    map_position.x, map_position.y
+                );
                 next_turn_phase.set(TurnPhases::PlayerMovement);
-                map.update_entity_position(&original_position, map_position.clone());
+                map.update_entity_position(&original_position, *map_position);
             }
         }
     }
@@ -127,13 +144,12 @@ fn npc_ai(
             neighbors.sort_by_key(|(_, distance)| *distance);
             debug!("neighbors: {:?}", neighbors);
             let current_distance = map_position.distance_to(player_position);
-            if let Some((next_position, distance)) = neighbors.first() {
-                if *distance <= current_distance {
-                    let original_position = *map_position;
-                    *map_position = *next_position;
-                    map.update_entity_position(&original_position, *next_position);
-                    
-                }
+            if let Some((next_position, distance)) = neighbors.first()
+                && *distance <= current_distance
+            {
+                let original_position = *map_position;
+                *map_position = *next_position;
+                map.update_entity_position(&original_position, *next_position);
             }
         }
     }
@@ -184,8 +200,8 @@ fn move_npc(
 
 #[cfg(test)]
 mod tests {
+    use super::map::{DEFAULT_MAP_HEIGHT, DEFAULT_MAP_WIDTH};
     use super::*;
-    use super::map::{DEFAULT_MAP_WIDTH, DEFAULT_MAP_HEIGHT};
 
     #[test]
     fn test_map_to_screen_coordinates() {

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use std::collections::HashMap;
 use std::ops::{Add, Sub};
 
-use super::{map_to_screen_coordinates, FIELD_SIZE_Y};
+use super::{FIELD_SIZE_Y, map_to_screen_coordinates};
 
 pub const DEFAULT_MAP_WIDTH: u32 = 120;
 pub const DEFAULT_MAP_HEIGHT: u32 = 40;
@@ -47,7 +47,7 @@ impl Sub for MapPosition {
 impl MapPosition {
     /// Grid distance for 8-directional movement (Chebyshev distance).
     pub fn distance_to(self, other: MapPosition) -> i32 {
-        (self.x - other.x).abs()+(self.y - other.y).abs()
+        (self.x - other.x).abs() + (self.y - other.y).abs()
     }
 }
 
@@ -63,7 +63,7 @@ const NEIGHBORS: [MapPosition; 8] = [
 ];
 
 pub fn neighbors_of(center: MapPosition) -> [MapPosition; 8] {
-    NEIGHBORS.map(|offset| center.clone() + offset)
+    NEIGHBORS.map(|offset| center + offset)
 }
 
 #[derive(Resource)]
@@ -107,13 +107,11 @@ impl Map {
         self.player
     }
 
-    pub fn position(&self, e: Entity) -> Option<MapPosition>
-    {
+    pub fn position(&self, e: Entity) -> Option<MapPosition> {
         self.positions.get(&e).cloned()
     }
 
-    pub fn player_position(&self) -> Option<MapPosition>
-    {
+    pub fn player_position(&self) -> Option<MapPosition> {
         match self.player() {
             Some(player) => self.position(player),
             None => None,
@@ -125,15 +123,14 @@ impl Map {
     }
 
     fn add_entity(&mut self, position: MapPosition, entity: Entity) {
-        self.entities.insert(position.clone(), entity);
+        self.entities.insert(position, entity);
         self.positions.insert(entity, position);
     }
 
     fn remove_entity(&mut self, position: &MapPosition) {
         let v = self.entities.remove(position);
-        match v {
-            Some(entity) => {self.positions.remove(&entity);},
-            None => (),
+        if let Some(entity) = v {
+            self.positions.remove(&entity);
         }
     }
 
@@ -141,9 +138,13 @@ impl Map {
         self.entities.get(position)
     }
 
-    pub fn update_entity_position(&mut self, old_position: &MapPosition, new_position: MapPosition) {
+    pub fn update_entity_position(
+        &mut self,
+        old_position: &MapPosition,
+        new_position: MapPosition,
+    ) {
         if let Some(entity) = self.entities.remove(old_position) {
-            self.entities.insert(new_position.clone(), entity);
+            self.entities.insert(new_position, entity);
             self.positions.remove(&entity);
             self.positions.insert(entity, new_position);
         }
@@ -151,15 +152,15 @@ impl Map {
 
     pub fn spawn_wall(&mut self, commands: &mut Commands, x: i32, y: i32) {
         let e = commands.spawn((
-            Text2d::new("#"), 
-            TextFont { 
-                font_size: FontSize::Px(FIELD_SIZE_Y), 
+            Text2d::new("#"),
+            TextFont {
+                font_size: FontSize::Px(FIELD_SIZE_Y),
                 font: default(),
                 ..default()
-                },
-                TextColor(Color::WHITE), 
-                Transform::from_translation(map_to_screen_coordinates(x, y, TERRAIN_Z)),
-                Terrain,
+            },
+            TextColor(Color::WHITE),
+            Transform::from_translation(map_to_screen_coordinates(x, y, TERRAIN_Z)),
+            Terrain,
         ));
         self.add_entity(MapPosition { x, y }, e.id());
     }
@@ -168,11 +169,11 @@ impl Map {
         let e = commands.spawn((
             Text2d::new("@"),
             TextFont {
-                font_size: FontSize::Px(FIELD_SIZE_Y),	
+                font_size: FontSize::Px(FIELD_SIZE_Y),
                 font: default(),
                 ..default()
             },
-            TextColor(Color::linear_rgb(1.0,0.0, 0.0)),
+            TextColor(Color::linear_rgb(1.0, 0.0, 0.0)),
             Transform::from_translation(map_to_screen_coordinates(x, y, ACTORS_Z)),
             MapPosition { x, y },
             Player,
@@ -185,7 +186,7 @@ impl Map {
         let e = commands.spawn((
             Text2d::new(symbol),
             TextFont {
-                font_size: FontSize::Px(FIELD_SIZE_Y),	
+                font_size: FontSize::Px(FIELD_SIZE_Y),
                 font: default(),
                 ..default()
             },
@@ -196,7 +197,6 @@ impl Map {
         ));
         self.add_entity(MapPosition { x, y }, e.id());
     }
-
 }
 
 impl Default for Map {
@@ -213,7 +213,7 @@ impl Plugin for MapPlugin {
     }
 }
 
- #[cfg(test)]
+#[cfg(test)]
 mod tests {
     use super::*;
 
