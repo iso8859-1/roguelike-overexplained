@@ -2,7 +2,7 @@ use bevy::log::LogPlugin;
 use bevy::prelude::*;
 
 mod map;
-use map::{MapPlugin, Map, MapPosition, ACTORS_Z, Player, Being};
+use map::{MapPlugin, Map, MapPosition, ACTORS_Z, Player, Npc, neighbors_of};
 
 const WINDOW_WIDTH: u32 = 1920;
 const WINDOW_HEIGHT: u32 = 1080;
@@ -18,15 +18,15 @@ enum TurnPhases {
     NpcMovement,
 }
 
-fn map_to_screen_coordinates(map_x: u32, map_y: u32, z_level: u32) -> Vec3 {
+fn map_to_screen_coordinates(map_x: i32, map_y: i32, z_level: i32) -> Vec3 {
     let screen_x = -(WINDOW_WIDTH as f32 / 2.0) + (map_x as f32 * FIELD_SIZE_X) + (FIELD_SIZE_X / 2.0);
     let screen_y = WINDOW_HEIGHT as f32 / 2.0 - (map_y as f32 * FIELD_SIZE_Y) - (FIELD_SIZE_Y / 2.0);
     Vec3::new(screen_x, screen_y, z_level as f32)
 }
 
-fn screen_to_map_coordinates(screen_x: f32, screen_y: f32) -> (u32, u32) {
-    let map_x = ((screen_x + (WINDOW_WIDTH as f32 / 2.0)) / FIELD_SIZE_X).floor() as u32;
-    let map_y = (((WINDOW_HEIGHT as f32 / 2.0 - screen_y) / FIELD_SIZE_Y).ceil() - 1.0) as u32;
+fn screen_to_map_coordinates(screen_x: f32, screen_y: f32) -> (i32, i32) {
+    let map_x = ((screen_x + (WINDOW_WIDTH as f32 / 2.0)) / FIELD_SIZE_X).floor() as i32;
+    let map_y = (((WINDOW_HEIGHT as f32 / 2.0 - screen_y) / FIELD_SIZE_Y).ceil() - 1.0) as i32;
     (map_x, map_y)
 }
 
@@ -51,7 +51,9 @@ fn main() {
 	.insert_state(TurnPhases::PlayerInput)
 	.add_systems(Startup, setup)
     .add_systems(Update, keyboard_input.run_if(in_state(TurnPhases::PlayerInput)))
-    .add_systems(Update, move_entity.run_if(in_state(TurnPhases::PlayerMovement)))
+    .add_systems(Update, move_player.run_if(in_state(TurnPhases::PlayerMovement)))
+    .add_systems(Update, npc_ai.run_if(in_state(TurnPhases::NpcAi)))
+    .add_systems(Update, move_npc.run_if(in_state(TurnPhases::NpcMovement)))
 	.run();
 }
 
@@ -62,13 +64,13 @@ fn setup(mut map: ResMut<Map>, mut commands: Commands) {
     info!("Player spawned");
     map.spawn_npc(&mut commands, 100, 30, "K");
 
-    for y in 0..map.height() {
-        let width = map.width();
+    for y in 0..map.height() as i32 {
+        let width = map.width() as i32;
         map.spawn_wall(&mut commands, 0, y);
         map.spawn_wall(&mut commands, width - 1, y);
     }
-    for x in 1..map.width() - 1 {
-        let height = map.height();
+    for x in 1..(map.width() - 1) as i32{
+        let height = map.height() as i32;
         map.spawn_wall(&mut commands, x, 0);
         map.spawn_wall(&mut commands, x, height - 1);
     }
@@ -108,9 +110,62 @@ fn keyboard_input(
     }
 }
 
-fn move_entity(
+fn npc_ai(
+    mut map: ResMut<Map>,
+    mut query: Query<&mut MapPosition, With<Npc>>,
+    mut next_turn_phase: ResMut<NextState<TurnPhases>>,
+) {
+    for mut map_position in query.iter_mut() {
+        //get player position
+        debug!("entity at: {:?}", map_position);
+        if let Some(player_position) = map.player_position() {
+            debug!("player at: {:?}", player_position);
+            //calculate all possible next positions
+            let mut neighbors: Vec<(MapPosition, i32)> = neighbors_of(*map_position)
+                .into_iter()
+                .filter(|pos| !map.check_collision(*pos))
+                .map(|pos| (pos, pos.distance_to(player_position)))
+                .collect();
+            neighbors.sort_by_key(|(_, distance)| *distance);
+            debug!("neighbors: {:?}", neighbors);
+            let current_distance = map_position.distance_to(player_position);
+            if let Some((next_position, distance)) = neighbors.first() {
+                if *distance <= current_distance {
+                    let original_position = *map_position;
+                    *map_position = *next_position;
+                    map.update_entity_position(&original_position, *next_position);
+                    
+                }
+            }
+        }
+    }
+    next_turn_phase.set(TurnPhases::NpcMovement);
+}
+
+fn move_player(
     time: Res<Time>,
     mut query: Query<(&mut Transform, &MapPosition), With<Player>>,
+    mut next_turn_phase: ResMut<NextState<TurnPhases>>,
+) {
+    for (mut transform, map_position) in query.iter_mut() {
+        let speed = 100.0;
+        let delta = time.delta_secs();
+        let target_position = map_to_screen_coordinates(map_position.x, map_position.y, ACTORS_Z);
+        let direction = (target_position - transform.translation).normalize_or_zero();
+        let distance = (target_position - transform.translation).length();
+        let movement_distance = speed * delta;
+        if distance <= movement_distance {
+            transform.translation = target_position;
+            next_turn_phase.set(TurnPhases::NpcAi);
+        } else {
+            transform.translation += direction * movement_distance;
+        }
+    }
+}
+
+fn move_npc(
+    time: Res<Time>,
+    mut query: Query<(&mut Transform, &MapPosition), With<Npc>>,
     mut next_turn_phase: ResMut<NextState<TurnPhases>>,
 ) {
     for (mut transform, map_position) in query.iter_mut() {
@@ -136,8 +191,8 @@ mod tests {
 
     #[test]
     fn test_map_to_screen_coordinates() {
-        for x in 0..DEFAULT_MAP_WIDTH {
-            for y in 0..DEFAULT_MAP_HEIGHT {
+        for x in 0..DEFAULT_MAP_WIDTH as i32 {
+            for y in 0..DEFAULT_MAP_HEIGHT as i32 {
                 let screen_coords = map_to_screen_coordinates(x, y, ACTORS_Z);
                 let (map_x, map_y) = screen_to_map_coordinates(screen_coords.x, screen_coords.y);
                 assert_eq!((map_x, map_y), (x, y));
