@@ -45,7 +45,7 @@ impl Sub for MapPosition {
 }
 
 impl MapPosition {
-    /// Grid distance for 8-directional movement (Chebyshev distance).
+    /// Calculates the Manhattan distance between two MapPositions.
     pub fn distance_to(self, other: MapPosition) -> i32 {
         (self.x - other.x).abs() + (self.y - other.y).abs()
     }
